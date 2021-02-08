@@ -69,4 +69,4 @@ async def playcard(ctx, arg):
     else:
         await ctx.channel.send('This command is only valid for players in the game, or it is not your turn yet.')
 
-bot.run('ODA3OTgxNjk1NjMzODUwMzc4.YB_5lw.ZsZWqKaxpstJ-oZGT8mxtmEUuz0')
+bot.run('TOKEN')
