@@ -20,7 +20,7 @@ class Player:
         output = ""
         for card in self.hand:
             output += str(self.hand.index(
-                card) + 1) + '. :' + card.rank.name.lower() + ': ' + ' :' + card.suit.name.lower() + ':' + "\n"
+                card) + 1) + '. :' + card.rank.name.lower() + ': ' + ' :' + card.suit.name.lower() + ': ' + card.suit.name + "\n"
         return output
 
     def playACard(self, index):

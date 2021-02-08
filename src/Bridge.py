@@ -62,6 +62,14 @@ class Bridge:
                 return player
         return None
 
+    def startTurn(self):
+        player = self.findPlayer(self.currentBid[2])
+        self.setGameStatus(Status.IN_PROGRESS)
+        if self.trumpSuit == Suit.NO_TRUMP:
+            self.turn = self.players.index(player)
+        else:
+            self.turn = (self.players.index(player) + 1) % len(self.players)
+
     def nextPlayersTurn(self):
         self.turn = (self.turn + 1) % len(self.players)
 
@@ -99,6 +107,8 @@ class Bridge:
             bidSuit = Suit.HEARTS
         elif args[1].lower() == 'spades' or args[1].lower() == 'spade':
             bidSuit = Suit.SPADES
+        elif args[1].lower() == 'notrump':
+            bidSuit = Suit.NO_TRUMP
         return bidValue, bidSuit
 
     def addPassCount(self):

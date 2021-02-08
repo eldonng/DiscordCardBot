@@ -6,6 +6,7 @@ class Suit(Enum):
     DIAMONDS = 2
     HEARTS = 3
     SPADES = 4
+    NO_TRUMP = 5
 
 
 class Rank(Enum):

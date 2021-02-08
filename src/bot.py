@@ -28,8 +28,8 @@ async def joingame(ctx):
 async def startgame(ctx):
     if game.gameStatus == Status.NOT_PLAYING:
         game.setGameChannel(ctx.channel)
-        print(ctx.channel)
-        print(ctx.author)
+        game.trumpSuit = None
+        game.currentBid = (0,0)
         game.setGameStatus(Status.WAITING)
         await ctx.channel.send('Game Started!')
         await ctx.channel.send(game.addPlayer(ctx.author))
@@ -110,7 +110,11 @@ async def bid(ctx, *args):
 
 @bot.command(name='endbid')
 async def endbid(ctx):
-    game.setTrumpSuit()
     await game.gameChannel.send(game.announceBid())
+    game.setTrumpSuit()
+    game.startTurn()
+    turn = game.getPlayersTurn()
+    await ctx.channel.send(str(game.players[turn].name) + '\'s turn to play a card!')
 
-bot.run('ODA3OTgxNjk1NjMzODUwMzc4.YB_5lw.TdHkrU2vTQTiNVPW5p-CH9i0Hy0')
+
+bot.run('TOKEN')
