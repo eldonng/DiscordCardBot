@@ -43,7 +43,7 @@ class Card:
         self.rank = rank
 
     def showCard(self):
-        return str(self.suit.value) + " " + str(self.rank.value)
+        return str(" :" + self.suit.name.lower()) + ": : " + str(self.rank.name.lower()) + ":"
 
     def __gt__(self, otherCard):
         return ((self.suit.value - 1) * 13 + self.rank.value) > ((otherCard.suit.value - 1) * 13 + otherCard.rank.value)

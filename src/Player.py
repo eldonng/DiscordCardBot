@@ -24,5 +24,6 @@ class Player:
         return output
 
     def playACard(self, index):
-        if not self.hand and len(self.hand) <= index:
-            self.hand.pop(index-1)
+        if self.hand and len(self.hand) >= index > 0:
+            return self.hand.pop(index-1)
+

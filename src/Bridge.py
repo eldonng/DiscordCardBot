@@ -1,4 +1,11 @@
 from src import Deck, Player
+from enum import Enum
+
+
+class Status(Enum):
+    NOT_PLAYING = 0
+    WAITING = 1
+    IN_PROGRESS = 2
 
 
 class Bridge:
@@ -7,7 +14,8 @@ class Bridge:
         self.players = []
         self.deck = Deck.Deck()
         self.gameChannel = ''
-        self.gameStarted = False
+        self.gameStatus = Status.NOT_PLAYING
+        self.turn = 0
 
     def getCards(self, player):
         cardList = self.deck.drawNCards(13)
@@ -17,19 +25,20 @@ class Bridge:
     def endGame(self):
         self.players.clear()
         self.deck.initializeDeck()
-        self.setGameStarted(False)
+        self.setGameStatus(Status.NOT_PLAYING)
 
     def addPlayer(self, name):
-        if self.numOfPlayers() > 4:
+        if self.numOfPlayers() >= 4:
             return 'There are already 4 players in game!'
 #        elif player in self.players:
 #            return 'You are already in the game ' + str(player)
         else:
             newPlayer = Player.Player(name)
             self.players.append(newPlayer)
-            return str(name) + 'has joined the game!'
+            return str(name) + 'has joined the game! Player Count: ' + str(self.numOfPlayers())
 
     def startGame(self):
+        self.setGameStatus(Status.IN_PROGRESS)
         for player in self.players:
             self.getCards(player)
 
@@ -39,5 +48,17 @@ class Bridge:
     def setGameChannel(self, channel):
         self.gameChannel = channel
 
-    def setGameStarted(self, var):
-        self.gameStarted = var
+    def setGameStatus(self, var):
+        self.gameStatus = var
+
+    def findPlayer(self, name):
+        for player in self.players:
+            if player.name == name:
+                return player
+        return None
+
+    def nextPlayersTurn(self):
+        self.turn = (self.turn + 1) % len(self.players)
+
+    def getPlayersTurn(self):
+        return self.turn
