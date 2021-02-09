@@ -5,6 +5,8 @@ class Player:
     def __init__(self, name):
         self.hand = []
         self.name = name
+        self.setsWon = 0
+        self.setsOfCardsWon = []
 
     def addToHand(self, cardList):
         for card in cardList:
@@ -26,4 +28,10 @@ class Player:
     def playACard(self, index):
         if self.hand and len(self.hand) >= index > 0:
             return self.hand.pop(index-1)
+
+    def displayNumSetsWon(self):
+        return 'Number of sets won by ' + str(self.name) + ': ' + str(self.setsWon)
+
+    def incrementSetsWon(self):
+        self.setsWon += 1
 

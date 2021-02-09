@@ -1,4 +1,4 @@
-from src import Deck, Player
+from src import Deck, Player, Round
 from enum import Enum
 from src.Card import Suit
 
@@ -21,6 +21,17 @@ class Bridge:
         self.currentBid = (0, 0)
         self.trumpSuit = None
         self.passCount = 0
+        self.round = Round.Round()
+
+    def initializeGame(self, channel):
+        self.players.clear()
+        self.deck.initializeDeck()
+        self.gameChannel = channel
+        self.gameStatus = Status.WAITING
+        self.turn = 0
+        self.currentBid = (0, 0)
+        self.trumpSuit = None
+        self.round = Round.Round()
 
     def getCards(self, player):
         cardList = self.deck.drawNCards(13)
@@ -33,8 +44,6 @@ class Bridge:
             self.getCards(player)
 
     def endGame(self):
-        self.players.clear()
-        self.deck.initializeDeck()
         self.setGameStatus(Status.NOT_PLAYING)
 
     def addPlayer(self, name):
@@ -53,8 +62,8 @@ class Bridge:
     def setGameChannel(self, channel):
         self.gameChannel = channel
 
-    def setGameStatus(self, var):
-        self.gameStatus = var
+    def setGameStatus(self, status):
+        self.gameStatus = status
 
     def findPlayer(self, name):
         for player in self.players:
@@ -78,6 +87,7 @@ class Bridge:
 
     def setTrumpSuit(self):
         self.trumpSuit = self.currentBid[1]
+        self.round.startRound(self.trumpSuit)
 
     def getTrumpSuit(self):
         return self.trumpSuit
@@ -122,3 +132,25 @@ class Bridge:
 
     def announceBid(self):
         return "Bid has been finalised. The bid is " + str(self.currentBid[0]) + " " + self.currentBid[1].name + " by " + str(self.currentBid[2])
+
+    def addToSet(self, card, player):
+        self.round.addToSet(card, player)
+
+    def hasRoundEnded(self):
+        return self.round.hasRoundEnded()
+
+    def announceSetWinner(self):
+        player = self.round.getWinningPlayer()
+        player.setsWon += 1
+        output = self.round.displaySet()
+        output += self.round.announceSetWinner()
+        return output
+
+    def startNewRound(self):
+        round_set = self.round.retrieveSet()
+        winning_player = self.round.getWinningPlayer()
+        winning_player.setsOfCardsWon.append(round_set)
+        winning_player.setsWon += 1
+        self.round.startRound(self.trumpSuit)
+
+

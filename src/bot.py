@@ -2,10 +2,16 @@ import discord
 from discord.ext import commands
 from src import Bridge
 from src.Bridge import Status
+import random
+import codecs
 
 bot = commands.Bot(command_prefix='!')
 game = Bridge.Bridge()
-
+list = []
+f = codecs.open('wat_list.txt', 'r', 'utf-8')
+for line in f:
+    list.append(line)
+f.close()
 
 @bot.command(name='join')
 async def joingame(ctx):
@@ -27,10 +33,7 @@ async def joingame(ctx):
 @bot.command(name='startgame')
 async def startgame(ctx):
     if game.gameStatus == Status.NOT_PLAYING:
-        game.setGameChannel(ctx.channel)
-        game.trumpSuit = None
-        game.currentBid = (0,0)
-        game.setGameStatus(Status.WAITING)
+        game.initializeGame(ctx.channel)
         await ctx.channel.send('Game Started!')
         await ctx.channel.send(game.addPlayer(ctx.author))
     else:
@@ -58,11 +61,13 @@ async def playcard(ctx, arg):
             index = int(arg)
             if index < 0 or index > len(player.hand):
                 raise ValueError
-            print(player.name)
-            print(index)
             card = player.playACard(index)
+            game.addToSet(card, player)
+            if game.hasRoundEnded():
+                await game.gameChannel.send('End of current round!\n' + game.announceSetWinner())
+                game.startNewRound()
             await player.name.send(player.displayHand())
-            await game.gameChannel.send(str(player.name) + ' discards ' + card.showCard())
+            await game.gameChannel.send(str(player.name) + ' plays ' + card.showCard())
             game.nextPlayersTurn()
             turn = game.getPlayersTurn()
             await game.gameChannel.send(str(game.players[turn].name) + '\'s turn to play a card!')
@@ -84,7 +89,12 @@ async def bid(ctx, *args):
                     game.addPassCount()
                     await game.gameChannel.send(str(player.name) + ' bids to pass')
                     if game.getPassCount() == 3:
-                        await game.gameChannel.send('All players have passed. Use \'!endbid\' to complete bidding phase.')
+                        await game.gameChannel.send('All players have passed. Automatically ending bid phase.')
+                        await game.gameChannel.send(game.announceBid())
+                        game.setTrumpSuit()
+                        game.startTurn()
+                        turn = game.getPlayersTurn()
+                        await game.gameChannel.send(str(game.players[turn].name) + '\'s turn to play a card!')
                     else:
                         game.nextPlayersTurn()
                         turn = game.getPlayersTurn()
@@ -108,13 +118,37 @@ async def bid(ctx, *args):
         await ctx.send('Invalid Command. Game not in bidding phase.')
 
 
-@bot.command(name='endbid')
-async def endbid(ctx):
-    await game.gameChannel.send(game.announceBid())
-    game.setTrumpSuit()
-    game.startTurn()
-    turn = game.getPlayersTurn()
-    await ctx.channel.send(str(game.players[turn].name) + '\'s turn to play a card!')
+@bot.command(name='trump')
+async def trump(ctx):
+    if game.gameStatus == Status.IN_PROGRESS:
+        await game.gameChannel.send('The trump suit for this game is ' + game.trumpSuit.suit.name)
+    elif game.gameStatus == Status.BIDDING or game.gameStatus == Status.WAITING:
+        await game.gameChannel.send('The trump suit for this game is not decided yet.')
+    else:
+        await ctx.channel.send('There is no game currently.')
 
 
-bot.run('TOKEN')
+@bot.command(name='WAT')
+async def wat(ctx, *arg):
+    try:
+        if arg:
+            index = int(arg[0])
+            if index >= len(list) or index < 0:
+                raise ValueError
+        else:
+            index = random.randint(0, len(list) - 1)
+    except ValueError:
+        index = random.randint(0, len(list)-1)
+
+    await ctx.channel.send(list[index])
+
+
+@bot.command(name='add')
+async def add(ctx, *args):
+    input = ' '.join(args)
+    list.append(input)
+    await ctx.channel.send(input + " has been added")
+    f = codecs.open('wat_list.txt', 'a', 'utf-8')
+    f.write(input + '\n')
+    f.close()
+

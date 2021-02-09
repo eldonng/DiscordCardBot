@@ -12,7 +12,7 @@ class Deck:
         self.deck.clear()
         for suit in Card.Suit:
             for rank in Card.Rank:
-                self.deck.append(Card.Card(suit,rank))
+                self.deck.append(Card.Card(suit, rank))
         self.size = 52
 
     def drawCard(self):
