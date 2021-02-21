@@ -1,13 +1,14 @@
-from src import Deck, Player, Round
+from src import Deck, Player, Round, Team
 from enum import Enum
-from src.Card import Suit
+from src.Card import Suit, Rank, Card
 
 
 class Status(Enum):
     NOT_PLAYING = 0
     WAITING = 1
     BIDDING = 2
-    IN_PROGRESS = 3
+    PARTNERING = 3
+    IN_PROGRESS = 4
 
 
 class Bridge:
@@ -18,10 +19,12 @@ class Bridge:
         self.gameChannel = ''
         self.gameStatus = Status.NOT_PLAYING
         self.turn = 0
-        self.currentBid = (0, 0)
+        self.currentBid = (0, 0, None)
         self.trumpSuit = None
         self.passCount = 0
         self.round = Round.Round()
+        self.team1 = Team.Team()
+        self.team2 = Team.Team()
 
     def initializeGame(self, channel):
         self.players.clear()
@@ -29,7 +32,7 @@ class Bridge:
         self.gameChannel = channel
         self.gameStatus = Status.WAITING
         self.turn = 0
-        self.currentBid = (0, 0)
+        self.currentBid = (0, 0, None)
         self.trumpSuit = None
         self.round = Round.Round()
 
@@ -49,8 +52,8 @@ class Bridge:
     def addPlayer(self, name):
         if self.numOfPlayers() >= 4:
             return 'There are already 4 players in game!'
-#        elif self.findPlayer(name):
-#            return 'You are already in the game ' + str(name)
+        elif self.findPlayer(name):
+            return 'You are already in the game ' + str(name)
         else:
             newPlayer = Player.Player(name)
             self.players.append(newPlayer)
@@ -72,8 +75,7 @@ class Bridge:
         return None
 
     def startTurn(self):
-        player = self.findPlayer(self.currentBid[2])
-        self.setGameStatus(Status.IN_PROGRESS)
+        player = self.currentBid[2]
         if self.trumpSuit == Suit.NO_TRUMP:
             self.turn = self.players.index(player)
         else:
@@ -95,7 +97,7 @@ class Bridge:
     def checkValidBid(self, num, suit):
         if not self.currentBid:
             return True
-        if num < self.currentBid[0]:
+        if 0 < num < self.currentBid[0] or num > 13:
             return False
         elif num == self.currentBid[0]:
             print(str(suit.value) + " " + suit.name)
@@ -104,8 +106,12 @@ class Bridge:
                 return False
         return True
 
-    def setBid(self, num, suit, name):
-        self.currentBid = (num, suit, name)
+    def getCurrentBidder(self):
+        return self.currentBid[2]
+
+    def setBid(self, num, suit, player):
+        print(str(num) + " " + suit.name + " " + str(player.name))
+        self.currentBid = (num, suit, player)
 
     def parseBidArg(self, args):
         bidValue = int(args[0])
@@ -131,7 +137,9 @@ class Bridge:
         return self.passCount
 
     def announceBid(self):
-        return "Bid has been finalised. The bid is " + str(self.currentBid[0]) + " " + self.currentBid[1].name + " by " + str(self.currentBid[2])
+        output = "Bid has been finalised. The bid is " + str(self.currentBid[0]) + " " + self.currentBid[1].name + " by " + str(self.currentBid[2].name)
+        output += '\n' + str(self.currentBid[2].name) + " please choose your partner, e.g.: \'!partner ACE HEARTS\'"
+        return output
 
     def addToSet(self, card, player):
         self.round.addToSet(card, player)
@@ -142,6 +150,12 @@ class Bridge:
     def announceSetWinner(self):
         player = self.round.getWinningPlayer()
         player.score += 1
+        self.team1.updateSetsWon()
+        print("Team 1 score: " + str(self.team1.setsWon))
+        print("Needs to win: " + str(self.team1.getNumSetsToWin()))
+        self.team2.updateSetsWon()
+        print("Team 2 score: " + str(self.team2.setsWon))
+        print("Needs to win: " + str(self.team2.getNumSetsToWin()))
         output = self.round.displaySet()
         output += self.round.announceSetWinner()
         return output
@@ -152,4 +166,77 @@ class Bridge:
         winning_player.setsOfCardsWon.append(round_set)
         self.round.startRound(self.trumpSuit)
 
+    def setPartner(self, card):
+        winning_bidder = self.getCurrentBidder()
+        #Team 1 always belongs to the winning bidder
+        self.team1.addPartner(winning_bidder)
+        for player in self.players:
+            if player.isCardInHand(card):
+                self.team1.addPartner(winning_bidder)
+            elif player is not winning_bidder:
+                self.team2.addPartner(player)
 
+        #Set number of sets for each team to win
+        self.team1.setNumSetsToWin(self.currentBid[0] + 6)
+        self.team2.setNumSetsToWin(13 - self.team1.getNumSetsToWin())
+
+    def parsePartnerArg(self, args):
+        if args[0].lower() == "two" or args[0].lower() == '2':
+            cardRank = Rank.TWO
+        elif args[0].lower() == "three" or args[0].lower() == '3':
+            cardRank = Rank.THREE
+        elif args[0].lower() == "four" or args[0].lower() == '4':
+            cardRank = Rank.FOUR
+        elif args[0].lower() == "five" or args[0].lower() == '5':
+            cardRank = Rank.FIVE
+        elif args[0].lower() == "six" or args[0].lower() == '6':
+            cardRank = Rank.SIX
+        elif args[0].lower() == "seven" or args[0].lower() == '7':
+            cardRank = Rank.SEVEN
+        elif args[0].lower() == "eight" or args[0].lower() == '8':
+            cardRank = Rank.EIGHT
+        elif args[0].lower() == "nine" or args[0].lower() == '9':
+            cardRank = Rank.NINE
+        elif args[0].lower() == "ten" or args[0].lower() == '10':
+            cardRank = Rank.KEYCAP_TEN
+        elif args[0].lower() == "jack" or args[0].lower() == 'j':
+            cardRank = Rank.REGIONAL_INDICATOR_J
+        elif args[0].lower() == "queen" or args[0].lower() == 'q':
+            cardRank = Rank.REGIONAL_INDICATOR_Q
+        elif args[0].lower() == "king" or args[0].lower() == 'k':
+            cardRank = Rank.REGIONAL_INDICATOR_K
+        elif args[0].lower() == "ace" or args[0].lower() == 'a':
+            cardRank = Rank.A
+        else:
+            raise ValueError
+
+        if args[1].lower() == 'clubs' or args[1].lower() == 'club':
+            cardSuit = Suit.CLUBS
+        elif args[1].lower() == 'diamonds' or args[1].lower() == 'diamond':
+            cardSuit = Suit.DIAMONDS
+        elif args[1].lower() == 'hearts' or args[1].lower() == 'heart':
+            cardSuit = Suit.HEARTS
+        elif args[1].lower() == 'spades' or args[1].lower() == 'spade':
+            cardSuit = Suit.SPADES
+        else:
+            raise ValueError
+        return Card(cardSuit, cardRank)
+
+    def announcePartner(self, card):
+        self.setPartner(card)
+        return str(self.getCurrentBidder().name) + ' has declared his/her partner to be ' + card.showCard()
+
+    def hasEnded(self):
+        return self.team1.hasWon() or self.team2.hasWon()
+
+    def concludeWinner(self):
+        teammates = ""
+        if self.team1.hasWon():
+            winning_team = self.team1
+        elif self.team2.hasWon():
+            winning_team = self.team2
+
+        for player in winning_team.getPartners():
+            teammates += str(player.name) + ' '
+
+        return "Congratulations! " + teammates + ' has won the game with ' + str(winning_team.setsWon) + ' sets won!'

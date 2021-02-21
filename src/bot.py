@@ -2,8 +2,13 @@ import discord
 from discord.ext import commands
 from src import Bridge, Blackjack
 from src.Bridge import Status
+
+import os
+from dotenv import load_dotenv
 import random
 import codecs
+
+load_dotenv()
 
 bot = commands.Bot(command_prefix='!')
 game = Bridge.Bridge()
@@ -57,23 +62,29 @@ async def endgame(ctx):
 
 @bot.command(name='play')
 async def playcard(ctx, arg):
-    if game.gameStatus == Status.BIDDING:
-        await ctx.send('Game Still in Bidding Phase!')
+    if game.gameStatus is not Status.IN_PROGRESS:
+        await ctx.send('There is currently no game, or it is still in bidding phase.')
         return
     turn = game.getPlayersTurn()
     player = game.findPlayer(ctx.author)
     if player and game.players[turn].name == ctx.author:
         try:
             index = int(arg)
-            if index < 0 or index > len(player.hand):
+            if index < 0 or index > len(game.players[turn].hand):
                 raise ValueError
-            card = player.playACard(index)
-            game.addToSet(card, player)
-            await player.name.send(player.displayHand())
-            await game.gameChannel.send(str(player.name) + ' plays ' + card.showCard())
+            card = game.players[turn].playACard(index)
+            game.addToSet(card, game.players[turn])
+            await player.name.send(game.players[turn].displayHand())
+            await game.gameChannel.send(str(game.players[turn].name) + ' plays ' + card.showCard())
             if game.hasRoundEnded():
                 await game.gameChannel.send('End of current round!\n' + game.announceSetWinner())
-                game.startNewRound()
+                if game.hasEnded():
+                    await game.gameChannel.send(game.concludeWinner())
+                    await ctx.channel.send('Game Ended')
+                    game.endGame()
+                    return
+                else:
+                    game.startNewRound()
             game.nextPlayersTurn()
             turn = game.getPlayersTurn()
             await game.gameChannel.send(str(game.players[turn].name) + '\'s turn to play a card!')
@@ -90,39 +101,63 @@ async def bid(ctx, *args):
         turn = game.getPlayersTurn()
         player = game.findPlayer(ctx.author)
         if player and game.players[turn].name == ctx.author:
-            try:
-                if args[0].lower() == "pass":
+            #try:
+            if args[0].lower() == "pass":
+                if not game.getCurrentBidder():
+                    await ctx.channel.send('You cannot bid to pass when there is no bid!')
+                    return
+                else:
                     game.addPassCount()
                     await game.gameChannel.send(str(player.name) + ' bids to pass')
                     if game.getPassCount() == 3:
                         await game.gameChannel.send('All players have passed. Automatically ending bid phase.')
                         await game.gameChannel.send(game.announceBid())
                         game.setTrumpSuit()
-                        game.startTurn()
-                        turn = game.getPlayersTurn()
-                        await game.gameChannel.send(str(game.players[turn].name) + '\'s turn to play a card!')
+                        game.setGameStatus(Status.PARTNERING)
                     else:
                         game.nextPlayersTurn()
                         turn = game.getPlayersTurn()
                         await ctx.channel.send(str(game.players[turn].name) + '\'s turn to bid!')
+            else:
+                bidValue, bidSuit = game.parseBidArg(args)
+                if game.checkValidBid(bidValue, bidSuit):
+                    game.setBid(bidValue, bidSuit, player)
+                    game.resetPassCount()
+                    await game.gameChannel.send(str(player.name) + ' bids ' + str(bidValue) + " " + bidSuit.name)
+                    game.nextPlayersTurn()
+                    turn = game.getPlayersTurn()
+                    await ctx.channel.send(str(game.players[turn].name) + '\'s turn to bid!')
                 else:
-                    bidValue, bidSuit = game.parseBidArg(args)
-                    if game.checkValidBid(bidValue, bidSuit):
-                        game.setBid(bidValue, bidSuit, player.name)
-                        game.resetPassCount()
-                        await game.gameChannel.send(str(player.name) + ' bids ' + str(bidValue) + " " + bidSuit.name)
-                        game.nextPlayersTurn()
-                        turn = game.getPlayersTurn()
-                        await ctx.channel.send(str(game.players[turn].name) + '\'s turn to bid!')
-                    else:
-                        await game.gameChannel.send('Invalid bid. Please bid higher than the previous bid')
-                        return
-            except:
-                await game.gameChannel.send('Invalid bid. Either \'!bid 2 Hearts\' to bid 1 Hearts or \'!bid pass\' to pass')
+                    await game.gameChannel.send('Invalid bid. Please bid higher than the previous bid')
+                    return
+            #except:
+             #   await game.gameChannel.send('Invalid bid. Either \'!bid 2 Hearts\' to bid 1 Hearts or \'!bid pass\' to pass')
 
     else:
         await ctx.send('Invalid Command. Game not in bidding phase.')
 
+
+@bot.command(name='partner')
+async def setPartner(ctx, *args):
+    if game.gameStatus is not Status.PARTNERING:
+        await ctx.channel.send('Either there is no game, or this is not the time to decide a partner.')
+        return
+
+    winning_bidder = game.getCurrentBidder()
+    player = game.findPlayer(ctx.author)
+    if player.name is not winning_bidder.name:
+        await game.gameChannel.send('Only the winning bidder can choose a partner.')
+        return
+
+    try:
+        partnerCard = game.parsePartnerArg(args)
+        await game.gameChannel.send(game.announcePartner(partnerCard))
+        game.setGameStatus(Status.IN_PROGRESS)
+        game.startTurn()
+        turn = game.getPlayersTurn()
+        await game.gameChannel.send(str(game.players[turn].name) + '\'s turn to play a card!')
+    except ValueError:
+        await game.gameChannel.send('Invalid !partner format. Example: \'!partner ACE HEARTS\'')
 
 @bot.command(name='trump')
 async def trump(ctx):
@@ -281,10 +316,28 @@ async def leaveGame(ctx):
 
 
 @bot.command(name='end')
-async def endBlackjack(ctx):
+async def endBlackjack():
     if blackjack.gameStatus == Blackjack.Status.WAITING:
         blackjack.setGameStatus(Blackjack.Status.NOT_PLAYING)
 
 
-bot.run('ODA3OTgxNjk1NjMzODUwMzc4.YB_5lw.RRis0kx47k1ATPuSukw_c-p4-AE')
+@bot.command(name='gamehelp')
+async def showHelp(ctx):
+    helpList = "`Welcome to the Help Desk!\n" \
+               "!gamehelp - displays this help screen\n" \
+               "!join - joins any currently waiting game\n"\
+                "Bridge:\n"\
+               "!startgame - starts a Bridge Game\n" \
+               "!endgame - ends a Bridge Game\n" \
+                "!bid - place a bid during the bidding phase.\n" \
+               "E.g. !bid 1 CLUBS or !bid pass to skip your bid\n" \
+               "!play - play a card when it is your turn. (Note: Use this in a DM with the bot to prevent leaking information!)\n" \
+               "E.g. !play 5 to play the 5th card in your deck\n" \
+               "!partner - choose your partner when you have won the bid\n" \
+               "E.g. !partner KING SPADES\n" \
+               "!trump - displays the current trump suit in the game`"
+    await ctx.channel.send(helpList)
+
+
+bot.run(os.getenv('TOKEN'))
 

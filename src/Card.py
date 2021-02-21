@@ -48,3 +48,6 @@ class Card:
 
     def __gt__(self, otherCard):
         return ((self.suit.value - 1) * 13 + self.rank.value) > ((otherCard.suit.value - 1) * 13 + otherCard.rank.value)
+
+    def __eq__(self, otherCard):
+        return self.suit == otherCard.suit and self.rank == otherCard.rank

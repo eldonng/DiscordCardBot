@@ -43,6 +43,9 @@ class Player:
     def displayNumSetsWon(self):
         return 'Number of sets won by ' + str(self.name) + ': ' + str(self.score)
 
+    def getScore(self):
+        return self.score
+
     def incrementSetsWon(self):
         self.score += 1
 
@@ -70,4 +73,21 @@ class Player:
     def setOutcome(self, outcome):
         self.outcome = outcome
 
+    def setPartner(self, player):
+        self.partners.add(player)
+
+    def getPartner(self):
+        return self.partners
+
+    def isCardInHand(self, card):
+        for playerCard in self.hand:
+            if playerCard == card:
+                return True
+        return False
+
+    def __eq__(self, other):
+        return self.name == other.name
+
+    def __hash__(self):
+        return hash(repr(self))
 

@@ -33,14 +33,13 @@ class Round:
         return self.winningCard
 
     def announceSetWinner(self):
-        self.winningPlayer.setsWon += 1
         output = 'Set Winner:\n ' + self.winningCard.showCard() + ' played by ' + str(self.winningPlayer.name) + '\n'
         output += self.winningPlayer.displayNumSetsWon()
         return output
 
     def decideWinningPlayer(self, card, player):
         if self.winningCard:
-            if card.suit == self.winningCard:
+            if card.suit == self.winningCard.suit:
                 if card.rank.value > self.winningCard.rank.value:
                     self.winningCard = card
                     self.winningPlayer = player
