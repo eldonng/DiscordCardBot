@@ -35,7 +35,7 @@ class Bridge:
 
     def getCards(self, player):
         cardList = self.deck.drawNCards(13)
-        player.addToHand(cardList)
+        player.addListToHand(cardList)
         player.sortHand()
 
     def startGame(self):
@@ -141,7 +141,7 @@ class Bridge:
 
     def announceSetWinner(self):
         player = self.round.getWinningPlayer()
-        player.setsWon += 1
+        player.score += 1
         output = self.round.displaySet()
         output += self.round.announceSetWinner()
         return output
@@ -150,7 +150,6 @@ class Bridge:
         round_set = self.round.retrieveSet()
         winning_player = self.round.getWinningPlayer()
         winning_player.setsOfCardsWon.append(round_set)
-        winning_player.setsWon += 1
         self.round.startRound(self.trumpSuit)
 
 

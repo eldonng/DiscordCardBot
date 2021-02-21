@@ -1,12 +1,13 @@
 import discord
 from discord.ext import commands
-from src import Bridge
+from src import Bridge, Blackjack
 from src.Bridge import Status
 import random
 import codecs
 
 bot = commands.Bot(command_prefix='!')
 game = Bridge.Bridge()
+blackjack = Blackjack.Blackjack()
 list = []
 f = codecs.open('wat_list.txt', 'r', 'utf-8')
 for line in f:
@@ -15,6 +16,11 @@ f.close()
 
 @bot.command(name='join')
 async def joingame(ctx):
+    if blackjack.gameStatus == Blackjack.Status.WAITING:
+        output = blackjack.addPlayer(ctx.author)
+        for player in blackjack.players:
+            await player.name.send(output)
+        return
     if game.gameStatus == Status.WAITING:
         await ctx.channel.send(game.addPlayer(ctx.author))
         if game.numOfPlayers() == 4:
@@ -63,11 +69,11 @@ async def playcard(ctx, arg):
                 raise ValueError
             card = player.playACard(index)
             game.addToSet(card, player)
+            await player.name.send(player.displayHand())
+            await game.gameChannel.send(str(player.name) + ' plays ' + card.showCard())
             if game.hasRoundEnded():
                 await game.gameChannel.send('End of current round!\n' + game.announceSetWinner())
                 game.startNewRound()
-            await player.name.send(player.displayHand())
-            await game.gameChannel.send(str(player.name) + ' plays ' + card.showCard())
             game.nextPlayersTurn()
             turn = game.getPlayersTurn()
             await game.gameChannel.send(str(game.players[turn].name) + '\'s turn to play a card!')
@@ -121,7 +127,7 @@ async def bid(ctx, *args):
 @bot.command(name='trump')
 async def trump(ctx):
     if game.gameStatus == Status.IN_PROGRESS:
-        await game.gameChannel.send('The trump suit for this game is ' + game.trumpSuit.suit.name)
+        await game.gameChannel.send('The trump suit for this game is ' + game.trumpSuit.name)
     elif game.gameStatus == Status.BIDDING or game.gameStatus == Status.WAITING:
         await game.gameChannel.send('The trump suit for this game is not decided yet.')
     else:
@@ -146,9 +152,139 @@ async def wat(ctx, *arg):
 @bot.command(name='add')
 async def add(ctx, *args):
     input = ' '.join(args)
-    list.append(input)
-    await ctx.channel.send(input + " has been added")
-    f = codecs.open('wat_list.txt', 'a', 'utf-8')
-    f.write(input + '\n')
-    f.close()
+    if input.find('@') >= 0:
+        await ctx.channel.send('@ detected. No tags allowed.')
+    else:
+        list.append(input)
+        await ctx.channel.send(input + " has been added")
+        f = codecs.open('wat_list.txt', 'a', 'utf-8')
+        f.write(input + '\n')
+        f.close()
+
+
+@bot.command(name='blackjack')
+async def playBlackjack(ctx):
+    print(blackjack.gameStatus)
+    if blackjack.gameStatus == Blackjack.Status.NOT_PLAYING:
+        blackjack.initializeGame(ctx.channel)
+        await ctx.channel.send('Game Started!')
+        await ctx.channel.send(blackjack.addPlayer(ctx.author))
+    else:
+        await ctx.channel.send('Game has already started!')
+
+
+@bot.command(name='start')
+async def start(ctx):
+    if blackjack.gameStatus == Blackjack.Status.WAITING and blackjack.numOfPlayers() >= 2:
+        output = blackjack.checkRoundStart()
+        if output == 'Valid':
+            blackjack.setGameStatus(Blackjack.Status.IN_PROGRESS)
+            blackjack.startRound()
+            for player in blackjack.players:
+                await player.name.send(player.displayHand())
+                await player.name.send(player.displayScore())
+                turn = blackjack.round.getTurn()
+                await player.name.send(str(blackjack.players[turn].name) + '\'s turn to draw!')
+        else:
+            for player in blackjack.players:
+                await player.name.send(output)
+
+
+@bot.command(name='banker')
+async def getbanker(ctx):
+    banker = blackjack.getDealer()
+    await ctx.channel.send('Banker of the game is: ' + str(banker.name))
+
+
+@bot.command(name='beBanker')
+async def setbanker(ctx):
+    output = blackjack.setDealer(ctx.author)
+    for player in blackjack.players:
+        await player.name.send(output)
+
+
+@bot.command(name='bet')
+async def bet(ctx, arg):
+    player = blackjack.findPlayer(ctx.author)
+    if player:
+        if blackjack.gameStatus == Blackjack.Status.WAITING:
+            try:
+                betValue = int(arg)
+                player.setBet(betValue)
+                for all_player in blackjack.players:
+                    await all_player.name.send(str(player.name) + ' has bet ' + str(betValue))
+            except ValueError:
+                await player.name.send('Invalid Bet Amount')
+        elif blackjack.gameStatus == Blackjack.Status.IN_PROGRESS:
+            await ctx.channel.send('You cannot change your bet while it is being played!')
+    else:
+        await ctx.channel.send('Either there are no games currently, or you are not in the game.')
+
+
+@bot.command(name='hit')
+async def hit(ctx):
+    currentTurn = blackjack.round.getTurn()
+    currentPlayer = blackjack.getPlayerByIndex(currentTurn)
+    if currentPlayer.name == ctx.author:
+        blackjack.round.hitCard()
+        await currentPlayer.name.send(currentPlayer.displayHand())
+        await currentPlayer.name.send(currentPlayer.displayScore())
+    else:
+        await ctx.channel.send('This command is only valid for players in the game, or it is not your turn yet.')
+
+    # if currentTurn is not blackjack.round.getTurn():
+    #     turn = blackjack.round.getTurn()
+    #     if blackjack.players[turn] == blackjack.dealer:
+    #         for player in blackjack.players:
+    #             await player.name.send(blackjack.round.announceRoundResults())
+    #             await player.name.send(blackjack.endRound())
+    #         blackjack.setGameStatus(Blackjack.Status.WAITING)
+    #     else:
+    #         for player in blackjack.players:
+    #             await player.name.send(str(blackjack.players[turn].name) + '\'s turn to draw!')
+    #         await blackjack.players[turn].name.send(blackjack.players[turn].displayHand())
+    #         await blackjack.players[turn].name.send(blackjack.players[turn].displayScore())
+
+
+@bot.command(name='pass')
+async def stand(ctx):
+    currentTurn = blackjack.round.getTurn()
+    if blackjack.getPlayerByIndex(currentTurn).name == ctx.author:
+        if blackjack.players[currentTurn] == blackjack.dealer:
+            output = blackjack.round.announceRoundResults()
+            for player in blackjack.players:
+                await player.name.send(output)
+                await player.name.send(blackjack.endRound())
+            blackjack.setGameStatus(Blackjack.Status.WAITING)
+        else:
+            blackjack.round.setNextTurn()
+            turn = blackjack.round.getTurn()
+            for player in blackjack.players:
+                await player.name.send(str(blackjack.players[turn].name) + '\'s turn to draw!')
+            await blackjack.players[turn].name.send(blackjack.players[turn].displayHand())
+            await blackjack.players[turn].name.send(blackjack.players[turn].displayScore())
+    else:
+        await ctx.channel.send('This command is only valid for players in the game, or it is not your turn yet.')
+
+
+@bot.command(name='leave')
+async def leaveGame(ctx):
+    if blackjack.findPlayer(ctx.author):
+        if blackjack.gameStatus == Blackjack.Status.WAITING:
+            output = blackjack.removePlayer(ctx.author)
+            for player in blackjack.players:
+                await player.name.send(output)
+        elif blackjack.gameStatus == Blackjack.Status.IN_PROGRESS:
+            await ctx.channel.send('You cannot leave the game while it is being played!')
+    else:
+        await ctx.channel.send('Either there are no games currently, or you are not in the game.')
+
+
+@bot.command(name='end')
+async def endBlackjack(ctx):
+    if blackjack.gameStatus == Blackjack.Status.WAITING:
+        blackjack.setGameStatus(Blackjack.Status.NOT_PLAYING)
+
+
+bot.run('ODA3OTgxNjk1NjMzODUwMzc4.YB_5lw.RRis0kx47k1ATPuSukw_c-p4-AE')
 

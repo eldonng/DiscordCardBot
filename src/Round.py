@@ -23,7 +23,7 @@ class Round:
     def displaySet(self):
         output = ''
         for turn in self.set:
-            output += turn[0].showCard() + ' played by' + str(turn[1].name) + '\n'
+            output += turn[0].showCard() + ' played by ' + str(turn[1].name) + '\n'
         return output
 
     def getWinningPlayer(self):
@@ -33,6 +33,7 @@ class Round:
         return self.winningCard
 
     def announceSetWinner(self):
+        self.winningPlayer.setsWon += 1
         output = 'Set Winner:\n ' + self.winningCard.showCard() + ' played by ' + str(self.winningPlayer.name) + '\n'
         output += self.winningPlayer.displayNumSetsWon()
         return output
