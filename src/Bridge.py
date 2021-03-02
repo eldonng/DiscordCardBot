@@ -25,16 +25,30 @@ class Bridge:
         self.round = Round.Round()
         self.team1 = Team.Team()
         self.team2 = Team.Team()
+        self.partnerCard = None
 
     def initializeGame(self, channel):
         self.players.clear()
         self.deck.initializeDeck()
+        self.team1 = Team.Team()
+        self.team2 = Team.Team()
         self.gameChannel = channel
         self.gameStatus = Status.WAITING
         self.turn = 0
         self.currentBid = (0, 0, None)
         self.trumpSuit = None
         self.round = Round.Round()
+        self.partnerCard = None
+
+    def wash(self):
+        self.deck.initializeDeck()
+        for player in self.players:
+            player.hand.clear()
+        self.turn = 0
+        self.currentBid = (0, 0, None)
+        self.trumpSuit = None
+        self.round = Round.Round()
+        self.partnerCard = None
 
     def getCards(self, player):
         cardList = self.deck.drawNCards(13)
@@ -52,8 +66,8 @@ class Bridge:
     def addPlayer(self, name):
         if self.numOfPlayers() >= 4:
             return 'There are already 4 players in game!'
-        elif self.findPlayer(name):
-            return 'You are already in the game ' + str(name)
+#        elif self.findPlayer(name):
+#            return 'You are already in the game ' + str(name)
         else:
             newPlayer = Player.Player(name)
             self.players.append(newPlayer)
@@ -97,11 +111,9 @@ class Bridge:
     def checkValidBid(self, num, suit):
         if not self.currentBid:
             return True
-        if 0 < num < self.currentBid[0] or num > 13:
+        if 0 < num < self.currentBid[0] or num > 7:
             return False
         elif num == self.currentBid[0]:
-            print(str(suit.value) + " " + suit.name)
-            print(str(self.currentBid[1].value) + " " + self.currentBid[1].name)
             if suit.value <= self.currentBid[1].value:
                 return False
         return True
@@ -150,14 +162,13 @@ class Bridge:
     def announceSetWinner(self):
         player = self.round.getWinningPlayer()
         player.score += 1
+        self.turn = self.players.index(player)
         self.team1.updateSetsWon()
-        print("Team 1 score: " + str(self.team1.setsWon))
-        print("Needs to win: " + str(self.team1.getNumSetsToWin()))
         self.team2.updateSetsWon()
-        print("Team 2 score: " + str(self.team2.setsWon))
-        print("Needs to win: " + str(self.team2.getNumSetsToWin()))
         output = self.round.displaySet()
         output += self.round.announceSetWinner()
+        for player in self.players:
+            output += player.displayNumSetsWon() + '\n'
         return output
 
     def startNewRound(self):
@@ -168,6 +179,7 @@ class Bridge:
 
     def setPartner(self, card):
         winning_bidder = self.getCurrentBidder()
+        self.partnerCard = card
         #Team 1 always belongs to the winning bidder
         self.team1.addPartner(winning_bidder)
         for player in self.players:
@@ -178,7 +190,7 @@ class Bridge:
 
         #Set number of sets for each team to win
         self.team1.setNumSetsToWin(self.currentBid[0] + 6)
-        self.team2.setNumSetsToWin(13 - self.team1.getNumSetsToWin())
+        self.team2.setNumSetsToWin(13 - self.team1.getNumSetsToWin() + 1)
 
     def parsePartnerArg(self, args):
         if args[0].lower() == "two" or args[0].lower() == '2':
@@ -240,3 +252,6 @@ class Bridge:
             teammates += str(player.name) + ' '
 
         return "Congratulations! " + teammates + ' has won the game with ' + str(winning_team.setsWon) + ' sets won!'
+
+    def validPlay(self, card, player):
+        return self.round.validPlay(card, player)

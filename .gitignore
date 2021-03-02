@@ -1,2 +1,3 @@
 *.pyc
 src/.env
+src/wat_list.txt

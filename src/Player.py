@@ -37,8 +37,8 @@ class Player:
         return output
 
     def playACard(self, index):
-        if self.hand and len(self.hand) >= index > 0:
-            return self.hand.pop(index-1)
+        if self.hand and len(self.hand) >= index >= 0:
+            return self.hand.pop(index)
 
     def displayNumSetsWon(self):
         return 'Number of sets won by ' + str(self.name) + ': ' + str(self.score)
@@ -82,6 +82,12 @@ class Player:
     def isCardInHand(self, card):
         for playerCard in self.hand:
             if playerCard == card:
+                return True
+        return False
+
+    def hasSuit(self, suit):
+        for card in self.hand:
+            if card.getCardSuit() == suit:
                 return True
         return False
 

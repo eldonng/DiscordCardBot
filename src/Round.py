@@ -33,9 +33,7 @@ class Round:
         return self.winningCard
 
     def announceSetWinner(self):
-        output = 'Set Winner:\n ' + self.winningCard.showCard() + ' played by ' + str(self.winningPlayer.name) + '\n'
-        output += self.winningPlayer.displayNumSetsWon()
-        return output
+        return 'Set Winner:\n ' + self.winningCard.showCard() + ' played by ' + str(self.winningPlayer.name) + '\n'
 
     def decideWinningPlayer(self, card, player):
         if self.winningCard:
@@ -52,3 +50,10 @@ class Round:
 
     def hasRoundEnded(self):
         return len(self.set) == 4
+
+    def validPlay(self, card, player):
+        if len(self.set) > 0:
+            startingSuit = self.set[0][0].getCardSuit()
+            if card.getCardSuit() is not startingSuit and player.hasSuit(startingSuit):
+                return False
+        return True
