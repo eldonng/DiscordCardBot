@@ -1,3 +1,4 @@
+from src.Card import Suit, Rank, Card
 
 class Round:
 
@@ -56,4 +57,6 @@ class Round:
             startingSuit = self.set[0][0].getCardSuit()
             if card.getCardSuit() is not startingSuit and player.hasSuit(startingSuit):
                 return False
+        elif len(self.set) == 0 and self.trump == Suit.NO_TRUMP:
+            self.trump = card.getCardSuit()
         return True

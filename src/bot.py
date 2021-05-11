@@ -19,6 +19,68 @@ for line in f:
     list.append(line)
 f.close()
 
+rock = '''
+    _______
+---'   ____)
+      (_____)
+      (_____)
+      (____)
+---.__(___)
+'''
+
+paper = '''
+    _______
+---'   ____)____
+          ______)
+          _______)
+         _______)
+---.__________)
+'''
+
+scissors = '''
+    _______
+---'   ____)____
+          ______)
+       __________)
+      (____)
+---.__(___)
+'''
+
+@bot.command(name='sps')
+async def ScissorsPaperStone(ctx, *arg):
+    choices = [rock, paper, scissors]
+    #player_choice = int(input("What do you choose? Type 0 for Rock, 1 for Paper or 2 for Scissors.\n"))
+
+    try:
+        if arg:
+            player_choice = int(arg[0])
+            if player_choice > 2 or player_choice < 0:
+                raise ValueError
+
+    except ValueError:
+        if arg[0] == "help":
+            await ctx.channel.send('What do you choose? Type 0 for Rock, 1 for Paper or 2 for Scissors.')
+        else:
+            await ctx.channel.send('Invalid number, you lose')
+        return
+    await ctx.channel.send(choices[player_choice])
+
+    cpu_choice = random.randint(0, 2)
+    await ctx.channel.send("Computer chose:")
+    await ctx.channel.send(choices[cpu_choice])
+
+    if player_choice == 0 and cpu_choice == 2:
+        await ctx.channel.send("You win")
+    elif player_choice == 2 and cpu_choice == 0:
+        await ctx.channel.send("You lose")
+    elif cpu_choice > player_choice:
+        await ctx.channel.send("You lose")
+    elif cpu_choice < player_choice:
+        await ctx.channel.send("You win")
+    elif player_choice == cpu_choice:
+        await ctx.channel.send("Draw")
+
+
 @bot.command(name='join')
 async def joingame(ctx):
     if blackjack.gameStatus == Blackjack.Status.WAITING:
@@ -198,19 +260,20 @@ async def wash(ctx):
         await ctx.channel.send('You cannot wash your cards after bidding phase!')
 
 
-# @bot.command(name='WAT')
-# async def wat(ctx, *arg):
-#     try:
-#         if arg:
-#             index = int(arg[0])
-#             if index >= len(list) or index < 0:
-#                 raise ValueError
-#         else:
-#             index = random.randint(0, len(list) - 1)
-#     except ValueError:
-#         index = random.randint(0, len(list)-1)
-#
-#     await ctx.channel.send(list[index])
+@bot.command(name='WAT')
+async def wat(ctx, *arg):
+    if ctx.channel.id == 787370738680201226:
+        try:
+            if arg:
+                index = int(arg[0])
+                if index >= len(list) or index < 0:
+                    raise ValueError
+            else:
+                index = random.randint(0, len(list) - 1)
+        except ValueError:
+            index = random.randint(0, len(list)-1)
+
+        await ctx.channel.send(list[index])
 
 
 @bot.command(name='add')
@@ -218,6 +281,8 @@ async def add(ctx, *args):
     input = ' '.join(args)
     if input.find('@') >= 0:
         await ctx.channel.send('@ detected. No tags allowed.')
+    elif any(message.lower() == input.lower() for message in list):
+        await ctx.channel.send(input + ' is already in the watlist')
     else:
         list.append(input)
         await ctx.channel.send(input + " has been added")
